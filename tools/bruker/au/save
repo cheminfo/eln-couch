@@ -1,0 +1,69 @@
+#include <time.h>
+#include <string.h>
+
+
+char username[255];
+char* product;
+char thetitle[255];
+char* batch;
+char jname[255];
+char mkdir[255];
+char xml[255];
+char ftp[255];
+char tempjdx[255];
+char tempxml[255];
+char rmtempjdx[255];
+char rmtempxml[255];
+char filename[255];
+char str[8];
+char  nucleus[20], solvent[20], pulse[20];
+double sfo1;
+char* safeName;
+
+GETCURDATA
+
+
+time_t now;
+struct tm  *ts;
+char toappend[255];
+
+time(&now);
+ts = localtime(&now);
+strftime(toappend, sizeof(toappend), "%M%S", ts);
+
+
+safeName=(char*)malloc(sizeof(char)*strlen(name)+1);
+strcpy(safeName, name);
+product = strtok(safeName, "_");
+batch = strtok(NULL, "_");
+if ( batch == NULL)
+{
+        batch=(char*)malloc(sizeof(char));
+        sprintf(batch, "");
+}
+
+(void)sprintf(username, user);
+
+
+GETSTRING("Please the product code (reaction code): ", product);
+GETSTRING("Please the batch (max 20 char): ", batch);
+ 
+sprintf(thetitle,"%s - %s",product,batch);
+
+
+sprintf(filename,"%s%s%s%s%s.fid.%s",username,"_",product,"_",batch,toappend);
+sprintf(tempjdx,"%s%s","/opt/data/jcamp/",filename);
+ 
+{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", tempjdx, 0, 3, thetitle, "BRUKER", username); \
+SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+
+
+sprintf(filename,"%s%s%s%s%s.jdx.%s",username,"_",product,"_",batch,toappend);
+sprintf(tempjdx,"%s%s","/opt/data/jcamp/",filename);
+ 
+{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", tempjdx, 2, 3, thetitle, "BRUKER", username); \
+SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+ 
+ 
+QUIT
+

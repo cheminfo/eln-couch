@@ -1,0 +1,49 @@
+/***********************************************-*-C++-*-********/
+/*	proc_2d_phase			22.05.2012			*/
+/****************************************************************/
+/*	Short Description :					*/
+/*	Processing AU program for 2D spectra without plotting.  */
+/*      with automatic 2D phasing				*/
+/****************************************************************/
+/*	Keywords :						*/
+/*	2D without plot						*/
+/****************************************************************/
+/*	Description/Usage :					*/
+/*	Processing of HSQC aquisitions 				*/
+/****************************************************************/
+/*	Author(s) :						*/
+/*	Name		: Pascal Mieville			*/
+/*	Organisation	: EPFL		   			*/
+/*	Email		: pascal.mieville@epfl.ch		*/
+/****************************************************************/
+/*	Name		Date	Modification:			*/
+/*								*/			
+/*								*/
+/****************************************************************/
+/*
+$Id: proc_2d_phase,v 1.0 2012/05/22: 13:28:40 wem Exp $
+*/
+
+double sw1,sw2,sf1,sf2,sum1,sum2;
+float offs1,offs2;
+
+XFB
+ERRORABORT
+FETCHPARS("OFFSET",&offs2)
+FETCHPARS("SW_p",&sw2)
+FETCHPARS("SF",&sf2)
+FETCHPAR1S("OFFSET",&offs1)
+FETCHPAR1S("SW_p",&sw1)
+FETCHPAR1S("SF",&sf1)
+sum1 = offs1 - sw1 / sf1;
+sum2 = offs2 - sw2 / sf2;
+STOREPAR1("F1P",offs1)
+STOREPAR("F1P",offs2)
+STOREPAR1("F2P",sum1)
+STOREPAR("F2P",sum2)
+
+//start phasign of the spectra
+
+XAU("phase_2d","");
+
+QUIT

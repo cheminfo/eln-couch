@@ -1,0 +1,67 @@
+
+AUERR = multizg(curdat, cmd);
+QUITMSG("--- multizg finished ---")
+
+#include <inc/exptUtil>
+
+int multizg(const char* curdat, const char* cmd)
+{
+  char *envpnt, statusline[128];
+  int expTime, zgsafety;
+  int i1 = 0;
+  int startExpno = expno;
+
+  if (*cmd == 0)
+  {
+    i1=1;
+    GETINT("Enter number of experiments : ",i1);
+  }
+  else
+  {
+    if (1 != sscanf(cmd, "%d", &i1))
+    {
+	STOPMSG("illegal input");
+    }
+  }
+
+  expTime = 0;
+  TIMES(i1)
+    SETCURDATA
+    expTime += CalcExpTime() + 4;
+    IEXPNO
+  END
+  DEXPNO
+  PrintExpTime(expTime, i1);
+
+  /* Turn zg safety off if on. Turn it back on at the end. */
+  envpnt = getenv("UXNMR_SAFETY");
+  zgsafety = 0;
+  if (envpnt != NULL)
+  {
+    if (strcasecmp(envpnt, "on") == 0)
+    {
+      zgsafety = 1;
+      CPR_exec("env set UXNMR_SAFETY=off", WAIT_TERM);
+    }
+  }
+
+  expno = startExpno;
+  SETCURDATA
+  TIMES(i1)
+//    GETPROSOL
+    ATMA
+    RGA
+    (void) sprintf(statusline,"running experiment # %d",loopcount1+1);
+    Show_status(statusline);
+    sleep(4);
+    ZG
+    XAUP
+    IEXPNO
+  END
+  DEXPNO
+
+  if (zgsafety == 1)
+    CPR_exec("env set UXNMR_SAFETY=on", WAIT_TERM);
+
+  return 0;
+}

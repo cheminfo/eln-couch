@@ -1,0 +1,380 @@
+/*** ^^A -*-C++-*- **********************************************/
+/*	acqulist.temp		27.03.2000			*/
+/****************************************************************/
+/*	Short Description :					*/
+/*	AU program for set up and start acquisitions using	*/
+/*	f1, f2, f3, vt, vc, vd, vp lists.			*/
+/****************************************************************/
+/*	Keywords :						*/
+/*	f1, f2, f3, vt, vc, vd, vp lists			*/
+/****************************************************************/
+/*	Description/Usage :					*/
+/*	AU program for set up and start acquisitions using	*/
+/*	f1, f2, f3, vt, vc, vd, vp lists.			*/
+/****************************************************************/
+/*	Author(s) :						*/
+/*	Name		: Peter Dvortsak			*/
+/*	Organisation	: Bruker BioSpin GmbH			*/
+/*	Email		: peter.dvortsak@bruker.de		*/
+/****************************************************************/
+/*	Name		Date	Modification:			*/
+/*	pdv		951129	created				*/
+/*	eng		000327  switch ZGSAFETY off if on	*/
+/****************************************************************/
+/*
+$Id: acqulist,v 1.13 2006/11/28 13:27:04 hb Exp $
+*/
+
+
+#define  LINES_MAX 20  /* may be set by user: maximum number of elements in the file list. */
+
+
+AUERR = acqulist (curdat);
+QUIT
+
+int acqulist (const char *curdat)
+{
+char text[PATH_MAX+400];	/* from vorspann  */
+int nr, ne, i, ret, expno_sav;
+int zgsafety;
+int lines_max = LINES_MAX;
+float o2, del, fakt;
+double bf1, bf11;
+char path[PATH_MAX],exp,strt[8],str[8];
+char answer[20],chan[8],chan1[8],chan2[8];
+char flist[LINES_MAX][FILE_SELECT_MAX_LINE_LEN];
+char **mempt, *envpnt, path2[PATH_MAX];
+FILE *fptr;
+const char* const* result_list;
+char key[32];
+float f2;
+int i2=0;
+
+/*
+AUERR=Proc_err(ERROPT_AK_CAN|ERROPT_BEEP_DEF,
+"AU-program for set up and acquisition \n\
+using f1,f2,f3,vt,vc,vd,vp lists");
+if (AUERR==ERR_CANCEL) ABORT;
+*/
+
+/*
+#include <inc/getdataset>
+*/
+GETCURDATA
+
+	/*  select directory  */
+
+DATASET(name,expno,procno,disk,user)
+expno_sav=expno;
+
+strcpy(answer, "");
+GETSTRING( "Which variable should be changed? (f1, f2, f3, vc, vt, vd, or vp)",answer );
+
+if(!strcmp(answer,"f1"))
+{
+  (void)strcpy(chan,"O1");
+  (void)strcpy(chan1,"BF1");
+  (void)strcpy(chan2,"F1LIST");
+  (void)strcpy(key,"F1_DIRS");
+}
+else if(!strcmp(answer,"f2"))
+{
+  (void)strcpy(chan,"O2");
+  (void)strcpy(chan1,"BF2");
+  (void)strcpy(chan2,"F2LIST");
+  (void)strcpy(key,"F2_DIRS");
+}
+else if(!strcmp(answer,"f3"))
+{
+  (void)strcpy(chan,"O3");
+  (void)strcpy(chan1,"BF2");
+  (void)strcpy(chan2,"F3LIST");
+  (void)strcpy(key,"F3_DIRS");
+}
+else if(!strcmp(answer,"vc"))
+{
+  (void)strcpy(chan2,"VCLIST");
+  (void)strcpy(key,"VC_DIRS");
+  i=1;
+  GETINT("Which loop counter is to be changed (0-31):",i)
+  (void)sprintf(chan,"L %d",i);
+}
+else if(!strcmp(answer,"vt"))
+{
+  (void)strcpy(chan2,"VTLIST");
+  (void)strcpy(key,"VT_DIRS");
+  (void)strcpy(chan,"TE");
+}
+else if(!strcmp(answer,"vp"))
+{
+  (void)strcpy(chan2,"VPLIST");
+  (void)strcpy(key,"VP_DIRS");
+  i=1;
+  GETINT("Which pulse is to be changed (0-31):",i)
+  (void)sprintf(chan,"P %d",i);
+}
+else if(!strcmp(answer,"vd"))
+{
+  (void)strcpy(chan2,"VDLIST");
+  (void)strcpy(key,"VD_DIRS");
+  i=1;
+  GETINT("Which delay is to be changed (0-31):",i)
+  (void)sprintf(chan,"D %d",i);
+}
+else
+{
+  STOPMSG("List not yet implemented");
+}
+
+/* get key entry of parfile_dir.prop */
+if ((result_list = getParamDirs(key)) == 0)
+{
+  Proc_err(DEF_ERR_OPT,"getParamDirs(%s) : %s",
+	     key, getParamDirsErrMsg(key));
+  STOP
+}
+strcpy(path, *result_list);
+
+nr=getdir(path,&mempt,NULL);
+if (nr<0)
+{
+  Proc_err(DEF_ERR_OPT,"directory error %s",path);
+  STOP
+}
+
+if (nr == 0)
+{
+  Proc_err(DEF_ERR_OPT,"No such file in: \n%s", path);
+  ABORT
+}
+/*  select file   */
+nr = FileSelect(path, flist, &lines_max, 0);
+
+if(nr == -1)
+{
+    if(lines_max == 0)
+	STOPMSG("Error: LINES_MAX must be > 0")
+    else if (lines_max == (LINES_MAX+1))
+	Proc_err(DEF_ERR_OPT,
+		 "Error: Not enough space for all list elements in %s (maximun is %d)", 
+		 path, LINES_MAX);
+    else
+	Proc_err(DEF_ERR_OPT, "Error: List not completed after 30 seconds");
+    ABORT
+}
+if(nr == 0)
+{
+    if(lines_max == 0)
+	STOPMSG("Error: Nothing selected, list is empty");
+}
+(void)strcpy(path2,flist[0]);
+(void)strcat(path,path2);
+
+	/*  edit list file   */
+
+edit_file(path);
+if ( (fptr=fopen(path,"rt")) == 0 )
+{
+  Perror(DEF_ERR_OPT,path);
+  STOPMSG("Au program aborted")
+}
+
+ne=8;
+GETINT("Enter number of experiments(=entries in list):",ne)
+if(ne==0)
+{
+  STOPMSG("Stop AU program! No. of exp.=0")
+} 
+(void)strcpy(strt,"y");
+GETSTRING("Do you want to start acquisition? y/n",strt)
+
+(void)strcpy(str,"n");
+/*
+GETSTRING("Do you want check other acquisition parameters? y/n",str)
+*/
+if(str[0]=='y')
+{
+  XCMD("sendgui eda")
+}
+
+if (!strcmp(answer,"vc"))
+{
+  goto I;
+}
+else if ( !strcmp(answer,"vt"))
+{
+  goto F;
+}
+else if (!strcmp(answer,"vd"))
+{
+  goto D;
+}
+else if (!strcmp(answer,"vp"))
+{
+  goto F;
+}
+
+	/*  read and check frequency list  */
+
+if (!strcmp(answer,"f1")||!strcmp(answer,"f2")||!strcmp(answer,"f3"))
+{
+  fscanf(fptr,"%*s");
+  fscanf(fptr,"%lf",&bf1);
+  FETCHPAR(chan1,&bf11)
+  if (bf11!=bf1)
+  {
+    fclose(fptr);
+    STOPMSG("Incorrect BF in freq.list or in current data set");
+  }
+}
+
+	/*  store floating parameters(freq,pulses)  */
+
+TIMES(ne)
+if (fscanf(fptr,"%f",&o2)<1)
+{
+  fclose(fptr);
+  (void)sprintf(text,
+  "No. of exp.  doesn`t corresp. to no.of  values in`%s`list",path2);
+  STOPMSG(text);
+}
+STOREPAR(chan,o2)
+STOREPAR(chan2,path2)
+expno ++;
+END
+fclose(fptr);
+if (strt[0] == 'y')
+{
+  goto A;
+}
+else
+  STOPMSG("End of setup, you can start acquisiton with 'multizg'");
+
+I:
+
+	/*  store integer parameters (temp,loop counter) */
+
+TIMES(ne)
+  if (fscanf(fptr,"%d",&i2)<1)
+  {
+    fclose(fptr);
+    (void)sprintf(text,
+    "No. of exp.  doesn`t corresp.to no.of values in`%s`list",path2);
+    STOPMSG(text);
+  }
+  STOREPAR(chan,i2)
+  STOREPAR(chan2,path2)
+  expno ++;
+END
+fclose(fptr);
+if (strt[0] == 'y')
+{
+  goto A;
+}
+else
+  STOPMSG("End of setup, you can start acquisiton with 'multizg'");
+
+F:
+
+	/*  store floating parameters (temp,loop counter) */
+
+TIMES(ne)
+  if (fscanf(fptr,"%f",&f2)<1)
+  {
+    fclose(fptr);
+    (void)sprintf(text,
+    "No. of exp.  doesn`t corresp.to no.of values in`%s`list",path2);
+    STOPMSG(text);
+  }
+  STOREPAR(chan,f2)
+  STOREPAR(chan2,path2)
+  expno ++;
+END
+fclose(fptr);
+if (strt[0] == 'y')
+{
+  goto A;
+}
+else
+  STOPMSG("End of setup, you can start acquisiton with 'multizg'");
+
+D:
+
+	/*  store delays */
+
+TIMES(ne)
+  ret= fscanf(fptr,"%f%c",&del,&exp);
+  if(ret<1)
+  {
+    fclose(fptr);
+    (void)sprintf(text,
+    "No. of exp.  doesn`t corresp.to no.of values in`%s`list",path2);
+    STOPMSG(text);
+  }
+  switch(exp)
+  {
+    case 'u':
+		fakt=1e-6;
+		break;
+    case 'm':
+		fakt=1e-3;
+		break;
+    default:
+		fakt=1;
+		break;
+  }
+  del=del*fakt;    
+  STOREPAR(chan,del)
+  STOREPAR(chan2,path2)
+  expno ++;
+END
+fclose(fptr);
+if (strt[0] == 'y')
+{
+  goto A;
+}
+else
+  STOPMSG("End of setup, you can start acquisiton with 'multizg'");
+
+A:
+
+	/* start acquisition */
+
+expno=expno_sav;
+DATASET(name,expno,procno,disk,user)
+
+/*
+AUERR=Proc_err(ERROPT_AK_CAN|ERROPT_BEEP_DEF,
+"Do you want start acquisition ? \n\
+Are all acquisition parameters correct?");
+if (AUERR==ERR_CANCEL) ABORT;
+*/
+
+/* Turn zg safety off if on. Turn it back on at the end. */
+envpnt = getenv("UXNMR_SAFETY");
+zgsafety = 0;
+if(envpnt != NULL)
+{
+  if(strcmp(envpnt, "on") == 0)
+  {
+    zgsafety = 1;
+    CPR_exec("env set UXNMR_SAFETY=off", WAIT_TERM);
+  }
+}
+
+TIMES(ne)
+  if (!strcmp(chan2,"VTLIST"))
+  {
+    TESET
+    TEREADY(60,0.1)
+  }
+  ZG
+  XAUP
+  IEXPNO
+END
+
+if(zgsafety == 1)
+  CPR_exec("env set UXNMR_SAFETY=on", WAIT_TERM);
+
+QUITMSG("End of AU program")
+

@@ -1,0 +1,106 @@
+#include <time.h>
+#include <string.h>
+
+
+char username[255];
+char* product;
+char thetitle[255];
+char* batch;
+char jname[255];
+char mkdir[255];
+char xml[255];
+char ftp[255];
+char tempjdx[255];
+char filename[255];
+char  nucleus[20], solvent[20], pulse[20];
+double sfo1;
+char* safeName;
+char    pulprog[PATH_MAX];
+int    parmode;
+
+
+GETCURDATA
+
+
+time_t now;
+struct tm  *ts;
+char toappend[255];
+
+
+
+time(&now);
+ts = localtime(&now);
+strftime(toappend, sizeof(toappend), "%M%S", ts);
+
+safeName=(char*)malloc(sizeof(char)*strlen(name)+1);
+strcpy(safeName, name);
+product = strtok(safeName, "_");
+batch = strtok(NULL, "_");
+if ( batch == NULL)
+{
+	batch=(char*)malloc(sizeof(char));
+	sprintf(batch, "");
+}
+(void)sprintf(username, user);
+
+FETCHPARS("PARMODE",&parmode);
+
+if (parmode == 1) {
+
+/* 2D */
+/* Autophase if hsqc */
+FETCHPARS("PULPROG",pulprog);
+if (strstr(pulprog,"hsqc"))
+{
+  XAU("LPphase2d","");
+}
+/* END autophase */
+XFB;
+ERRORABORT;
+ABS2;
+ABS1;
+LEVCALC;
+
+} else {
+/* 1D */
+
+EF;
+ERRORABORT;
+APK;
+ABS;
+}
+
+sprintf(thetitle,"%s - %s",product,batch);
+
+sprintf(filename,"%s%s%s%s%s.fid.%s",username,"_",product,"_",batch,toappend);
+sprintf(tempjdx,"%s%s","/opt/data/jcamp/",filename);
+//printf("product: %s\n", product);
+//printf("batch: %s\n", batch);
+//printf("username: %s\n", username);
+//printf("tempjdx: %s\n", tempjdx);
+//printf("thetitle: %s\n", thetitle);
+
+{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", \
+tempjdx, 0, 3, thetitle, "BRUKER", username); \
+SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+
+sprintf(filename,"%s%s%s%s%s.jdx.%s",username,"_",product,"_",batch,toappend);
+sprintf(tempjdx,"%s%s","/opt/data/jcamp/",filename);
+//printf("product: %s\n", product);
+//printf("batch: %s\n", batch);
+//printf("username: %s\n", username);
+//printf("tempjdx: %s\n", tempjdx);
+//printf("thetitle: %s\n", thetitle);
+
+if (parmode == 1) {
+/* 2D */
+{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", \
+tempjdx, 1, 3, thetitle, "BRUKER", username); \
+SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+} else {
+{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", \
+tempjdx, 2, 3, thetitle, "BRUKER", username); \
+SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+}
+ 
+QUIT

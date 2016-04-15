@@ -1,0 +1,191 @@
+/***********************************************-*-C++-*-********/
+/*	proc_2dinv_2p		18.05.2000			*/
+/****************************************************************/
+/*	Short Description :					*/
+/* 	Processes and plots 2D inverse type spectra. 		*/
+/* 	Plots two projections. 				 	*/
+/****************************************************************/
+/*	Keywords :						*/
+/*	2D inverse HMQC HSQC					*/
+/****************************************************************/
+/*	Description/Usage :					*/
+/*	Processing AU program for 2D inverse type spectra. 	*/
+/*	If you want to use your individual plot layout, you	*/
+/*	can define it within TopSpin with the command 'layout'.	*/
+/*	If no layout is defined, the default '2D_hom.xwp'	*/
+/*	is used.						*/
+/*	The phase in F2 is determined by 2D peak picking   	*/
+/*	followed by APK. The phase in F1 is calculated with	*/
+/*	the AU program calcphinv.				*/
+/****************************************************************/
+/*	Author(s) :						*/
+/*	Name		: Peter Dvortsak, Rainer Kerssebaum,	*/
+/*			  Ruediger Weisemann, Mike Engelhardt,	*/
+/*			  Sven Cunskis				*/
+/*	Organisation	: Bruker BioSpin GmbH			*/
+/*	Email		: nmr-software-support@bruker.de	*/
+/****************************************************************/
+/*	Name		Date	Modification:			*/
+/*	pdv		910901	created				*/
+/*	eng		000418	set plot limits			*/
+/*	rke,rwe,eng	000503	calls AU program calcphinv 	*/
+/*	eng		000518	set projections			*/
+/*      pdv		000920  perform phase correction in f2 	*/
+/*      svcu		000920  use XWIN-PLOT for plotting 	*/
+/*	svcu		020807	Bug 3217 corrected		*/
+/*	svcu		041001	increase print_to_file options	*/
+/*	wem,svcu	060530	optimized functionality		*/
+/*								*/
+/****************************************************************/
+/*
+$Id: proc_2dinv_2p,v 1.17 2007/04/18 06:13:23 wem Exp $
+*/
+
+/*********************************************/
+/* Declare PROCPATH2/3 for the projection handling */
+#define PROCPATH2(x) curd_path(0,disk2,user2,name2,expno2,procno2,x)
+#define PROCPATH3(x) curd_path(0,disk3,user3,name3,expno3,procno3,x)
+
+
+/*********************************************/
+/* Declare variables */
+char portf[PATH_MAX], xwlay[PATH_MAX], iobuf[BUFSIZ];
+int row[10000],inumber = 0,irow,s_procno,nprocno;
+FILE *fptr;
+float phc0,phc1;
+double o1p,sw,o2p,sw1,f2left,f2right;
+
+portf[0]=0;
+
+ 
+/*********************************************/
+/* Declare filenames etc. for the portfolio file handling */
+DECLARE_PORTFOLIO
+
+
+/*********************************************/
+/* F1 phase correction by AU program 'calcphinv' */
+XCMD("calcphinv")
+
+XFB
+ERRORABORT
+
+
+/*********************************************/
+/* define aquisition range as peak picking limits */
+STOREPAR("SR",0.0)
+STOREPAR1("SR",0.0)
+FETCHPARS("O1P",&o1p)
+FETCHPARS("SW",&sw)
+FETCHPARS("O2P",&o2p)
+FETCHPAR1S("SW",&sw1)
+f2left=o1p+(sw/2);
+f2right=o1p-(sw/2);
+STOREPAR("F1P",f2left)
+STOREPAR("F2P",f2right)
+f2left=o2p+(sw1/2);
+f2right=o2p-(sw1/2);
+STOREPAR1("F1P",f2left)
+STOREPAR1("F2P",f2right)
+
+
+/*********************************************/
+/* store current procno */
+s_procno=procno;
+
+
+/*********************************************/
+/* create the pp file on pos and neg peaks   */
+RVPP(1000)
+ERRORABORT
+DATASET(name,expno,1000,disk,user)
+STOREPAR("PSIGN",0)
+
+DATASET(name,expno,s_procno,disk,user)
+RVNP(1001)
+ERRORABORT
+DATASET(name,expno,1001,disk,user)
+STOREPAR("PSIGN",1)
+
+
+/*********************************************/
+/* open and read the pp files  */
+i1=1;
+nprocno=1000;
+irow=0;
+TIMES (2)
+  DATASET(name,expno,nprocno,disk,user)  
+  STOREPAR("F1P",f2left)
+  STOREPAR("F2P",f2right)
+  STOREPAR("CY",100.)
+  PP
+  ERRORABORT
+  XCMD("sendgui convertpeaklist txt")
+  ERRORABORT
+
+  fptr = fopen(PROCPATH("peak.txt"),"r");
+  if (fptr==0)
+    Proc_err(DEF_ERR_OPT,"cannot open peak.txt for reading");
+  else
+  {
+    TIMES2 (4)
+      fgets(iobuf,sizeof(iobuf),fptr);
+    END
+    while (fgets(iobuf,sizeof(iobuf),fptr)  &&  i1 < sizeof(row) / sizeof(row[0]))
+    {
+      if (sscanf(iobuf,"%d %d",&inumber,&row[i1]) == 2) 
+	i1++;
+    }
+    fclose(fptr);
+    unlink(PROCPATH("peak.txt"));
+  }
+  irow += inumber;
+  nprocno++;
+END
+
+if (irow==0)
+{
+  Proc_err(DEF_ERR_OPT,
+  "no peak was found in the 2D file, phase correction aborted");
+  ABORT
+}
+
+
+/*********************************************/
+/* add the selected rows in the procno 1000 */
+if ((irow/2)==inumber){irow=irow/2;}
+DATASET(name,expno,s_procno,disk,user)
+i1=1; 
+RSR (row[i1],1000)
+RSR (row[i1],1001)
+RSR (row[i1+1],1002)
+DATASET(name,expno,1000,disk,user)
+DATASET2(name,expno,1001,disk,user)
+DATASET3(name,expno,1002,disk,user)
+STOREPAR("DATMOD",1)
+STOREPAR("DC",1.0)
+ADD
+for (i1=3;i1<irow+1;i1++)
+{
+  WRPA (name,expno,1001,disk,user)
+  DATASET(name,expno,s_procno,disk,user)
+  RSR (row[i1],1002)
+  DATASET(name,expno,1000,disk,user)
+  ADD 
+}
+
+
+/*********************************************/
+/* perform the phase correction */
+DATASET(name,expno,1000,disk,user)
+APK
+FETCHPAR("PHC0",&phc0)
+FETCHPAR("PHC1",&phc1)
+DATASET(name,expno,s_procno,disk,user)
+phc0=fmod(phc0,360.);
+STOREPAR ("PHC0",phc0)        
+STOREPAR ("PHC1",phc1)        
+
+
+
+QUIT
