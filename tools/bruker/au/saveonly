@@ -1,0 +1,48 @@
+#include <time.h>
+#include <string.h>
+
+
+char tempjdx[255];
+char filename[255];
+int parmode;
+
+GETCURDATA
+
+// we get a unique time stamp
+time_t now;
+struct tm  *ts;
+char toappend[255];
+time(&now);
+ts = localtime(&now);
+strftime(toappend, sizeof(toappend), "%H%M%S", ts);
+
+FETCHPARS("PARMODE",&parmode);
+
+
+
+
+
+if (parmode == 1) {
+// 2D 
+sprintf(filename,"%s.%s.jdx",name,toappend);
+sprintf(tempjdx,"%s%s","//friawappwnlp01/spy_NMR_arch$/NMRjcamp/to_process/",filename);
+{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", tempjdx, 1, 3, "", "BRUKER", "");
+SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+
+
+} else {
+
+sprintf(filename,"%s.%s.fid.jdx",name,toappend);
+sprintf(tempjdx,"%s%s","//friawappwnlp01/spy_NMR_arch$/NMRjcamp/to_process/",filename);
+{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", tempjdx, 0, 3, "", "BRUKER", "");
+SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+
+sprintf(filename,"%s.%s.jdx",name,toappend);
+sprintf(tempjdx,"%s%s","//friawappwnlp01/spy_NMR_arch$/NMRjcamp/to_process/",filename);
+{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", tempjdx, 2, 3, "", "BRUKER", "");
+SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+
+}
+ 
+ 
+QUIT
