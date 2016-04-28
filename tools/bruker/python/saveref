@@ -1,0 +1,70 @@
+# 
+# module imports
+import os.path
+import httplib
+
+"""
+Read filepath of current experiment and create temporary
+file path for the jcamp before sending it off
+"""
+
+curdata = CURDATA()
+specfile = str(curdata[0]) + "_" + str(curdata[1])
+tempath = [r"C:\Windows\Temp", specfile]
+tempath = os.path.join(*tempath)
+
+"""
+Convert to JCAMP-DX
+"""
+
+# Verify the number of spectra dimensions and convert accordingly
+parmode = GETPAR("PARMODE")
+
+# parmode 0 is 1D
+if parmode == "0":
+	# Convert the fid to JCAMP-DX
+	tojdx = "tojdx \""+ tempath + ".fid.jdx" + "\"" + " 0 3 * BRUKER *"
+	result = XCMD(tojdx)
+	# Send file
+	headers = {"Content-type": "application/octet-stream", "Accept": "text/plain"}
+	conn = httplib.HTTPConnection("mydb.cheminfo.org")
+	jcampfile = open(tempath + ".fid.jdx", "r")
+	jcamstream = jcampfile.read()
+	jcampfile.close()
+	conn.request("POST", "/S8YWEADE9/upload/a/a/" + specfile + ".fid.jdx", jcamstream, headers)
+	conn.close()
+	# Remove spectrum
+	os.remove(tempath + ".fid.jdx")
+  # Convert the processed spectrum to JCAMP-DX
+	tojdx = "tojdx \""+ tempath + ".jdx" + "\"" + " 2 3 * BRUKER *"
+	result = XCMD(tojdx)
+  # Send file
+	headers = {'Content-type': 'application/octet-stream', 'Accept': 'text/plain'}
+	conn = httplib.HTTPConnection("mydb.cheminfo.org")
+	jcampfile = open(tempath + ".jdx", "r")
+	jcamstream = jcampfile.read()
+	jcampfile.close()
+	conn.request("POST", "/S8YWEADE9/upload/a/a/" + specfile + ".jdx", jcamstream, headers)
+	conn.close()
+	# Remove spectrum
+	os.remove(tempath + ".jdx")
+	
+	# parmode 1 is 2D
+elif parmode == "1":
+	# Convert the processed spectrum to JCAMP-DX
+	tojdx = "tojdx \""+ tempath + ".jdx" + "\"" + " 1 3 * BRUKER *"
+	result = XCMD(tojdx)
+	# Send file
+	headers = {'Content-type': 'application/octet-stream', 'Accept': 'text/plain'}
+	conn = httplib.HTTPConnection("mydb.cheminfo.org")
+	jcampfile = open(tempath + ".jdx", "r")
+	jcamstream = jcampfile.read()
+	jcampfile.close()
+	conn.request("POST", "/S8YWEADE9/upload/a/a/" + specfile + ".jdx", jcamstream, headers)
+	conn.close()
+	# Remove spectrum
+	os.remove(tempath + ".jdx")
+
+# Unrecognized spectra type or 3D, 4D
+else:
+  MSG("Unexpected PARMODE")
