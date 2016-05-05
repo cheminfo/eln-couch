@@ -1,0 +1,26 @@
+# Topsin uses decrepit Jython version of python so the with statement needs to be imported
+# ... 
+from __future__ import with_statement
+import csv
+
+# path with the nmr data
+datapath = "N:/Projects and Data/StandardDataBase/nmr experiments/"
+
+# path of the .csv file with the list of files. 
+speclistpath = "H:/referencesStandardsDB.txt"
+# assume csv file in speclistpath is a .tsv file
+
+with open(speclistpath, 'r') as tsv:
+	for line in csv.reader(tsv, delimiter="\t"):
+	  # Jump to this folder and experiment, assuming proc number is 1 
+		RE([line[0],line[1],"1", datapath])
+		
+		"""
+		EXEC_PYFILE("C:/Bruker/TopSpin3.1/exp/stan/nmr/py/user/saveRef.py")
+		this opens a new thread, do not use as it as it causes concurrency's problems...
+		loop proceeds while file is writing! 
+		EXEC_PYFILE("C:/Bruker/TopSpin3.1/exp/stan/nmr/py/user/saveRef.py")
+		"""
+		
+		# Correct way to do it (so for loop won't proceed unless the saveRef comand is finished)
+		XCMD("saveRef")
