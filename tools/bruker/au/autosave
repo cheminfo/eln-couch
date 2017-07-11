@@ -8,12 +8,8 @@ char thetitle[255];
 char* batch;
 char jname[255];
 char mkdir[255];
-char xml[255];
-char ftp[255];
 char tempjdx[255];
 char filename[255];
-char  nucleus[20], solvent[20], pulse[20];
-double sfo1;
 char* safeName;
 char    pulprog[PATH_MAX];
 int    parmode;
@@ -86,11 +82,6 @@ SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
 
 sprintf(filename,"%s%s%s%s%s.jdx.%s",username,"_",product,"_",batch,toappend);
 sprintf(tempjdx,"%s%s","/opt/data/jcamp/",filename);
-//printf("product: %s\n", product);
-//printf("batch: %s\n", batch);
-//printf("username: %s\n", username);
-//printf("tempjdx: %s\n", tempjdx);
-//printf("thetitle: %s\n", thetitle);
 
 if (parmode == 1) {
 /* 2D */
