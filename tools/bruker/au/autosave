@@ -6,8 +6,6 @@ char username[255];
 char* product;
 char thetitle[255];
 char* batch;
-char jname[255];
-char mkdir[255];
 char tempjdx[255];
 char filename[255];
 char* safeName;
@@ -68,30 +66,27 @@ ABS;
 
 sprintf(thetitle,"%s - %s",product,batch);
 
-sprintf(filename,"%s%s%s%s%s.fid.%s",username,"_",product,"_",batch,toappend);
-sprintf(tempjdx,"%s%s","/opt/data/jcamp/",filename);
-//printf("product: %s\n", product);
-//printf("batch: %s\n", batch);
-//printf("username: %s\n", username);
-//printf("tempjdx: %s\n", tempjdx);
-//printf("thetitle: %s\n", thetitle);
-
-{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", \
-tempjdx, 0, 3, thetitle, "BRUKER", username); \
-SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
-
 sprintf(filename,"%s%s%s%s%s.jdx.%s",username,"_",product,"_",batch,toappend);
 sprintf(tempjdx,"%s%s","/opt/data/jcamp/",filename);
 
 if (parmode == 1) {
-/* 2D */
-{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", \
-tempjdx, 1, 3, thetitle, "BRUKER", username); \
-SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+	/* 2D */
+	{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", \
+	tempjdx, 1, 3, thetitle, "BRUKER", username); \
+	SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
 } else {
-{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", \
-tempjdx, 2, 3, thetitle, "BRUKER", username); \
-SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+	{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", \
+	tempjdx, 2, 3, thetitle, "BRUKER", username); \
+	SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+
+	// We will also save the FID
+	sprintf(filename,"%s%s%s%s%s.fid.%s",username,"_",product,"_",batch,toappend);
+	sprintf(tempjdx,"%s%s","/opt/data/jcamp/",filename);
+
+	{(void)sprintf(Hilfs_string, "tojdx \"%s\" %d %d \"%s\" \"%s\" \"%s\"", \
+	tempjdx, 0, 3, thetitle, "BRUKER", username); \
+	SETCURDATA AUERR=CPR_exec(Hilfs_string, WAIT_TERM);}
+
 }
  
 QUIT
